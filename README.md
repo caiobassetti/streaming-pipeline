@@ -1,4 +1,4 @@
-## Architecture:
+# Architecture:
 flowchart LR
 - A [Python Producer (planned)] --> B [JSON events]
 - B                             --> C [Kafka Topic]
@@ -14,7 +14,7 @@ Postgres: Stores raw events and transformed tables.
 dbt: Aggregations (clicks per user/campaign/day).
 Dashboard: Streamlit view of aggregates.
 
-## Stack:
+# Stack:
 Python 3.12.9
 Kafka (Docker)
 confluent-kafka Python client
@@ -22,7 +22,7 @@ PostgreSQL (Docker)
 dbt (Core)
 Streamlit
 
-## Requirements:
+# Requirements:
 This demo uses Docker to run Kafka and Postgres locally.
 - **Docker + Docker Compose**
   - On **Windows/macOS**: install Docker Desktop.
@@ -31,8 +31,8 @@ This demo uses Docker to run Kafka and Postgres locally.
 - **Python client:** `confluent-kafka` (librdkafka-based, actively maintained)
   - Most platforms install prebuilt wheels. If your OS complains, install `librdkafka` from your package manager (e.g., `apt install librdkafka-dev` or `brew install librdkafka`).
 
-## Getting Started
-# Clone & set up:
+# Getting Started
+## Clone & set up:
 ```bash
 git clone https://github.com/caiobassetti/streaming-pipeline.git
 cd streaming-pipeline
@@ -40,14 +40,14 @@ pip install -r requirements.txt
 ```
 If confluent-kafka fails to build, install librdkafka (Linux: apt install librdkafka-dev; macOS: brew install librdkafka) and retry.
 
-# Environment variables
+### Environment variables
 This project uses a .env file for database settings.
 We do not commit real .env files — instead, copy the template
 ```bash
 cp .env.example .env
 ```
 
-# Start Kafka & Postgres (infra only):
+## Start Kafka & Postgres (infra only):
 Starts a single Kafka broker + Zookeeper + Postgres (empty DB)
 ```bash
 docker compose up -d
@@ -57,13 +57,13 @@ Verify containers are running
 ```bash
 docker ps
 ```
-## Running:
-# Run Producer:
+# Running:
+## Run Producer:
 ```bash
 python producer.py
 ```
 
-# Expected Producer Output Sample:
+### Expected Producer Output Sample:
 ```csharp
 Producing to topic 'clicks' on localhost:9092 (Ctrl+C to stop)
 → {'event_id': '5c74a1b2-38a7-4ef9-89f9-9f3b8b7f6ad5', 'ts': '2025-08-23T14:32:10.123456+00:00', 'user_id': 104, 'campaign_id': 12, 'action': 'search', 'page': '/results'}
@@ -72,12 +72,12 @@ Producing to topic 'clicks' on localhost:9092 (Ctrl+C to stop)
 → {'event_id': '92fb7e45-89a4-4987-84c6-6c9f7c99daef', 'ts': '2025-08-23T14:32:12.654321+00:00', 'user_id': 107, 'campaign_id': 12, 'action': 'view', 'page': '/home'}
 ```
 
-# Run Consumer (in a second terminal):
+## Run Consumer (in a second terminal):
 ```bash
 python consumer.py
 ```
 
-# Expected Consumer Output Sample:
+### Expected Consumer Output Sample:
 ```csharp
 Connected to Postgres at localhost:5433, DB=demo
 Subscribed to Kafka topic 'clicks' (group=demo-consumer)
@@ -88,22 +88,22 @@ Subscribed to Kafka topic 'clicks' (group=demo-consumer)
 ✓ inserted 5 rows into Postgres
 ```
 
-# Mini Streamlit Dashboard (in a third terminal):
+## Mini Streamlit Dashboard (in a third terminal):
 Run a simple live view of events and “events by action” aggregation.
 ```bash
 streamlit run app.py
 ```
 
-# Expected Dashboard Sample(auto-refresh every 5s):
+### Expected Dashboard Sample(auto-refresh every 5s):
 ![Dashboard view](docs/streamlit-sample.png)
 
-## Stopping & Cleaning Up:
-# Tear down Docker container (keeping volume):
+# Stopping & Cleaning Up:
+## Tear down Docker container (keeping volume):
 ```bash
 docker compose down
 ```
 
-# Tear down Docker and wipes down Kafka/ Postgres data:
+## Tear down Docker and wipes down Kafka/ Postgres data:
 ```bash
 docker compose down -v
 ```
