@@ -7,20 +7,20 @@ flowchart LR
 - E                             --> F [dbt Transformations (planned)]
 - F                             --> G [Analytics / Dashboard (planned)]
 
-Producer: Python script to emit fake click events as JSON.
-Broker: Kafka local single-broker for demo to stream events in real time.
-Consumer: Python process to read events and persist to Postgres.
-Postgres: Stores raw events and transformed tables.
-dbt: Aggregations (clicks per user/campaign/day).
-Dashboard: Streamlit view of aggregates.
+Producer: Python script to emit fake click events as JSON.<br>
+Broker: Kafka local single-broker for demo to stream events in real time.<br>
+Consumer: Python process to read events and persist to Postgres.<br>
+Postgres: Stores raw events and transformed tables.<br>
+dbt: Aggregations (clicks per user/campaign/day).<br>
+Dashboard: Streamlit view of aggregates.<br>
 
 # Stack:
-Python 3.12.9
-Kafka (Docker)
-confluent-kafka Python client
-PostgreSQL (Docker)
-dbt (Core)
-Streamlit
+Python 3.12.9<br>
+Kafka (Docker)<br>
+confluent-kafka Python client<br>
+PostgreSQL (Docker)<br>
+dbt (Core)<br>
+Streamlit<br>
 
 # Requirements:
 This demo uses Docker to run Kafka and Postgres locally.
