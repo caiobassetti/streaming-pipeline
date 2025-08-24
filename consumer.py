@@ -1,124 +1,82 @@
-import json, os, time
-from typing import Optional
-from confluent_kafka import Consumer, KafkaException, KafkaError
+"""
+Consumer: reads events from Kafka and persists them into Postgres (raw_events table).
+"""
+
+import os, json, logging
+from confluent_kafka import Consumer, KafkaException
 import psycopg2
-from psycopg2.extras import execute_values
-from dotenv import load_dotenv
 
-load_dotenv()  # load .env if present
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("consumer")
 
-TOPIC = "clicks"
-BOOTSTRAP = "localhost:9092"
-GROUP_ID = "demo-consumer"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "clicks")
 
-KAFKA_CONF = {
-    "bootstrap.servers": BOOTSTRAP,
-    "group.id": GROUP_ID,
-    "auto.offset.reset": "earliest",
-    "enable.auto.commit": True,
-}
+PG_HOST = os.getenv("PG_HOST", "postgres")
+PG_PORT = int(os.getenv("PG_PORT", "5432"))
+PG_DB   = os.getenv("PG_DB", "demo")
+PG_USER = os.getenv("PG_USER", "demo")
+PG_PASS = os.getenv("PG_PASS", "demo")
 
-PG_CONN_INFO = dict(
-    host=os.getenv("PG_HOST", "localhost"),
-    port=int(os.getenv("PG_PORT", "5433")),
-    dbname=os.getenv("PG_DB", "demo"),
-    user=os.getenv("PG_USER", "demo"),
-    password=os.getenv("PG_PASS", "demo"),
-)
+def pg_connect():
+    return psycopg2.connect(
+        host=PG_HOST, port=PG_PORT, dbname=PG_DB, user=PG_USER, password=PG_PASS
+    )
 
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS raw_events (
-    event_id UUID PRIMARY KEY,
-    ts TIMESTAMPTZ NOT NULL,
-    user_id INT NOT NULL,
-    campaign_id INT NOT NULL,
-    action TEXT NOT NULL,
-    page TEXT NOT NULL,
-    received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-"""
+def ensure_table():
+    with pg_connect() as conn, conn.cursor() as cur:
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS public.raw_events (
+            event_id TEXT PRIMARY KEY,
+            user_id INT,
+            session_id TEXT,
+            action TEXT,
+            metadata JSONB,
+            event_time TIMESTAMP
+        )
+        """)
+        conn.commit()
+    logger.info("Ensured table public.raw_events exists.")
 
-INSERT_SQL = """
-INSERT INTO raw_events (event_id, ts, user_id, campaign_id, action, page)
-VALUES %s
-ON CONFLICT (event_id) DO NOTHING;
-"""
+def run_consumer():
+    conf = {
+        "bootstrap.servers": KAFKA_BROKER,
+        "group.id": "clicks_ingestors",
+        "auto.offset.reset": "earliest",
+    }
+    consumer = Consumer(conf)
+    consumer.subscribe([KAFKA_TOPIC])
 
-def pg_connect(retries: int = 20, delay: float = 1.0) -> psycopg2.extensions.connection:
-    last_err: Optional[Exception] = None
-    for _ in range(retries):
-        try:
-            conn = psycopg2.connect(**PG_CONN_INFO)
-            conn.autocommit = False
-            return conn
-        except Exception as e:
-            last_err = e
-            time.sleep(delay)
-    raise RuntimeError(f"Could not connect to Postgres: {last_err}")
-
-def main():
-    # Connect to Postgres and ensure table exists
-    conn = pg_connect()
-    cur = conn.cursor()
-    cur.execute(CREATE_TABLE_SQL)
-    conn.commit()
-
-    c = Consumer(KAFKA_CONF)
-    c.subscribe([TOPIC])
-    print(f"Connected to Postgres at {PG_CONN_INFO['host']}:{PG_CONN_INFO['port']}, DB={PG_CONN_INFO['dbname']}")
-    print(f"Subscribed to Kafka topic '{TOPIC}' (group={GROUP_ID})")
-    print(f"\nConsuming from '{TOPIC}'")
-    buffer = []
-    BATCH = 10  # commit every 10 rows (demo-level batching)
+    logger.info(f"Config -> Kafka: {KAFKA_BROKER} | topic: {KAFKA_TOPIC} | group: clicks_ingestors | PG: {PG_HOST}:{PG_PORT}/{PG_DB} user={PG_USER}")
+    ensure_table()
+    logger.info(f'Consuming from topic "{KAFKA_TOPIC}"')
 
     try:
         while True:
-            msg = c.poll(timeout=1.0)
+            msg = consumer.poll(1.0)
             if msg is None:
-                if buffer:
-                    execute_values(cur, INSERT_SQL, buffer)
-                    conn.commit()
-                    buffer.clear()
                 continue
-
             if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    continue
                 raise KafkaException(msg.error())
 
-            try:
-                e = json.loads(msg.value().decode("utf-8"))
-                print(f"← consumed: {e}")
-                row = (
-                    e["event_id"],
-                    e["ts"],
-                    int(e["user_id"]),
-                    int(e["campaign_id"]),
-                    str(e["action"]),
-                    str(e["page"]),
-                )
-                buffer.append(row)
-                if len(buffer) >= BATCH:
-                    execute_values(cur, INSERT_SQL, buffer)
-                    conn.commit()
-                    print(f"✓ inserted {len(buffer)} rows into Postgres")
-                    buffer.clear()
-            except Exception as ex:
-                print(f"Skipping malformed message: {ex}")
+            event = json.loads(msg.value().decode("utf-8"))
+            with pg_connect() as conn, conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO public.raw_events (event_id, user_id, session_id, action, metadata, event_time)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (event_id) DO NOTHING
+                """, (
+                    event["event_id"], event["user_id"], event["session_id"],
+                    event["action"], json.dumps(event["metadata"]), event["event_time"]
+                ))
+                conn.commit()
+            logger.info(f"Inserted event {event['event_id']} action={event['action']}")
 
     except KeyboardInterrupt:
-        print("\nStopping consumer...")
+        logger.info("Stopping consumer...")
     finally:
-        if buffer:
-            try:
-                execute_values(cur, INSERT_SQL, buffer)
-                conn.commit()
-                print(f"✓ inserted {len(buffer)} rows into Postgres")
-            except Exception as ex:
-                print(f"Failed to flush final batch: {ex}")
-        cur.close()
-        conn.close()
-        c.close()
+        consumer.close()
+        logger.info("Consumer closed.")
 
 if __name__ == "__main__":
-    main()
+    run_consumer()

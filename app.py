@@ -1,3 +1,4 @@
+
 import os, time
 import pandas as pd
 import psycopg2
@@ -7,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 
 
 PG_HOST = os.getenv("PG_HOST", "localhost")
-PG_PORT = int(os.getenv("PG_PORT", "5433"))
+PG_PORT = int(os.getenv("PG_PORT", "5432"))
 PG_DB   = os.getenv("PG_DB", "demo")
 PG_USER = os.getenv("PG_USER", "demo")
 PG_PASS = os.getenv("PG_PASS", "demo")
@@ -28,16 +29,25 @@ col1, col2, col3 = st.columns(3)
 total = fetch("SELECT COUNT(*) AS n FROM raw_events;")
 col1.metric("Total events", int(total['n'].iloc[0]) if not total.empty else 0)
 
-by_action = fetch("""
+view = st.toggle("Show aggregated (dbt) view", value=False)
+
+if view:
+    st.subheader("Airflow + dbt batch aggregation")
+    by_action = fetch("""
+  SELECT action, COUNT(*) AS n
+  FROM analytics.fct_events_by_action
+  GROUP BY action
+  ORDER BY n DESC;
+""")
+    st.bar_chart(by_action.set_index("action")["n"])
+else:
+    st.subheader("Raw events")
+    by_action = fetch("""
   SELECT action, COUNT(*) AS n
   FROM raw_events
   GROUP BY action
   ORDER BY n DESC;
 """)
-st.subheader("Events by Action")
-if by_action.empty:
-    st.info("No data yet. Start the producer.")
-else:
     st.bar_chart(by_action.set_index("action")["n"])
 
 st.caption("Auto-refresh every 5 seconds while running")

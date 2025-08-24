@@ -1,47 +1,34 @@
-import json, time, random, uuid
-from datetime import datetime, timezone
+"""
+Producer: simulates clickstream events and sends them to Kafka.
+"""
+
+import os, json, time, random, uuid
 from confluent_kafka import Producer
 
-TOPIC = "clicks"
-BOOTSTRAP = "localhost:9092"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "clicks")
 
-conf = {
-    "bootstrap.servers": BOOTSTRAP,
-    "linger.ms": 50,
-    "message.timeout.ms": 5000,
-}
+producer = Producer({"bootstrap.servers": KAFKA_BROKER})
 
-p = Producer(conf)
-
-users = list(range(100, 110))
-campaigns = [12, 13, 14]
-actions = ["view", "search", "click", "purchase"]
-
-def fake_event():
-    return {
-        "event_id": str(uuid.uuid4()),
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "user_id": random.choice(users),
-        "campaign_id": random.choice(campaigns),
-        "action": random.choices(actions, weights=[0.5, 0.3, 0.18, 0.02])[0],
-        "page": random.choice(["/home", "/search", "/results", "/checkout"]),
-    }
+actions = ["page_view", "add_to_cart", "purchase"]
 
 def delivery_report(err, msg):
-    if err is not None:
-        print(f"Delivery failed: {err}")
+    if err:
+        print("Delivery failed:", err)
+    else:
+        print(f"Produced event to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()}")
 
-if __name__ == "__main__":
-    print(f"Producing to topic '{TOPIC}' on {BOOTSTRAP}")
-    try:
-        while True:
-            evt = fake_event()
-            payload = json.dumps(evt).encode("utf-8")
-            p.produce(TOPIC, value=payload, on_delivery=delivery_report)
-            p.poll(0)
-            print("→", evt)
-            time.sleep(random.uniform(0.1, 0.8))
-    except KeyboardInterrupt:
-        print("\nStopping producer...")
-    finally:
-        p.flush(5)
+print(f"Starting producer to {KAFKA_BROKER}, topic {KAFKA_TOPIC}")
+
+while True:
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "user_id": random.randint(1, 1000),
+        "session_id": str(uuid.uuid4()),
+        "action": random.choice(actions),
+        "metadata": {"campaign": random.choice(["summer", "spring", "fall"])},
+        "event_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    producer.produce(KAFKA_TOPIC, json.dumps(event).encode("utf-8"), callback=delivery_report)
+    producer.poll(0)
+    time.sleep(1)
