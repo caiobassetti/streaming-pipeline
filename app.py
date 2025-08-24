@@ -2,16 +2,18 @@
 import os, time
 import pandas as pd
 import psycopg2
-from psycopg2.extras import RealDictCursor
 import streamlit as st
+from psycopg2.extras import RealDictCursor
 from streamlit_autorefresh import st_autorefresh
+from dotenv import load_dotenv
 
+load_dotenv()
 
-PG_HOST = os.getenv("PG_HOST", "localhost")
-PG_PORT = int(os.getenv("PG_PORT", "5432"))
-PG_DB   = os.getenv("PG_DB", "demo")
-PG_USER = os.getenv("PG_USER", "demo")
-PG_PASS = os.getenv("PG_PASS", "demo")
+PG_HOST = os.getenv("PG_HOST")
+PG_PORT = int(os.getenv("PG_PORT"))
+PG_DB   = os.getenv("PG_DB")
+PG_USER = os.getenv("PG_USER")
+PG_PASS = os.getenv("PG_PASS")
 
 @st.cache_data(ttl=5)
 def fetch(sql):

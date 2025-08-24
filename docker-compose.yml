@@ -47,9 +47,9 @@ services:
     image: postgres:16
     container_name: streaming-pipeline-postgres
     environment:
-      POSTGRES_USER: demo
-      POSTGRES_PASSWORD: demo
-      POSTGRES_DB: demo
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: ${PG_DB}
     ports:
       - "5433:5432"
     healthcheck:
@@ -64,8 +64,8 @@ services:
     command: python -u producer.py
     env_file: .env
     environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_TOPIC: clicks
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
     depends_on:
       kafka:
         condition: service_healthy
@@ -76,13 +76,13 @@ services:
     command: python -u consumer.py
     env_file: .env
     environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_TOPIC: clicks
-      PG_HOST: postgres
-      PG_PORT: "5432"
-      PG_DB: demo
-      PG_USER: demo
-      PG_PASS: demo
+      PG_HOST: ${PG_HOST}
+      PG_PORT: ${PG_PORT}
+      PG_DB: ${PG_DB}
+      PG_USER: ${PG_USER}
+      PG_PASS: ${PG_PASS}
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      KAFKA_TOPIC:  ${KAFKA_TOPIC}
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,11 +95,11 @@ services:
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
     env_file: .env
     environment:
-      PG_HOST: postgres
-      PG_PORT: "5432"
-      PG_DB: demo
-      PG_USER: demo
-      PG_PASS: demo
+      PG_HOST: ${PG_HOST}
+      PG_PORT: ${PG_PORT}
+      PG_DB: ${PG_DB}
+      PG_USER: ${PG_USER}
+      PG_PASS: ${PG_PASS}
     depends_on:
       postgres:
         condition: service_healthy

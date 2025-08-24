@@ -76,7 +76,7 @@ python consumer.py
 
 ### Expected Consumer Output Sample:
 ```csharp
-Connected to Postgres at localhost:5433, DB=demo
+Connected to Postgres at localhost:5432, DB=demo
 Subscribed to Kafka topic 'clicks' (group=demo-consumer)
 ← consumed: {'event_id': '...', 'ts': '2025-08-23T15:12:00Z', 'user_id': 104, 'campaign_id': 12, 'action': 'search', 'page': '/results'}
 ← consumed: {...}
@@ -102,11 +102,7 @@ Airflow runs a DAG that:
 ## Starting Airflow:
 ```bash
 cd airflow
-echo "AIRFLOW_UID=50000" > .env
-mkdir -p dags logs plugins dbt_project dbt_profiles reports
-sudo chown -R 50000:0 dags logs plugins dbt_project dbt_profiles reports
-sudo chmod -R 775 dags logs plugins dbt_project dbt_profiles reports
-docker compose run --rm airflow-init
+docker compose up airflow-init
 docker compose up -d
 ```
 
@@ -118,7 +114,7 @@ Admin → Connections → +<br>
 Conn Id: pg_demo<br>
 Type: Postgres<br>
 Host: host.docker.internal<br>
-Port: 5433<br>
+Port: 5432<br>
 Schema: demo<br>
 Login/Password: demo / demo<br>
 

@@ -1,22 +1,21 @@
-"""
-Consumer: reads events from Kafka and persists them into Postgres (raw_events table).
-"""
-
 import os, json, logging
-from confluent_kafka import Consumer, KafkaException
 import psycopg2
+from confluent_kafka import Consumer, KafkaException
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("consumer")
 
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "clicks")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC")
 
-PG_HOST = os.getenv("PG_HOST", "postgres")
-PG_PORT = int(os.getenv("PG_PORT", "5432"))
-PG_DB   = os.getenv("PG_DB", "demo")
-PG_USER = os.getenv("PG_USER", "demo")
-PG_PASS = os.getenv("PG_PASS", "demo")
+PG_HOST = os.getenv("PG_HOST")
+PG_PORT = int(os.getenv("PG_PORT"))
+PG_DB   = os.getenv("PG_DB")
+PG_USER = os.getenv("PG_USER")
+PG_PASS = os.getenv("PG_PASS")
 
 def pg_connect():
     return psycopg2.connect(

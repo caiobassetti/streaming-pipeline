@@ -1,0 +1,8 @@
+name: 'demo_project'
+version: '1.0'
+profile: 'demo_postgres'
+
+# default config: materialize models as "table" (persisted, fast to query)
+models:
+  demo_project:
+    +materialized: table

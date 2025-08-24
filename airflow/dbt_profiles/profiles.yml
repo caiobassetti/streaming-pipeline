@@ -1,0 +1,11 @@
+demo_postgres:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: host.docker.internal
+      port: 5432
+      user: demo
+      password: demo
+      dbname: demo
+      schema: public
