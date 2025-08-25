@@ -4,7 +4,7 @@ demo_postgres:
     dev:
       type: postgres
       host: host.docker.internal
-      port: 5432
+      port: 5433
       user: demo
       password: demo
       dbname: demo

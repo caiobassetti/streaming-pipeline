@@ -1,4 +1,3 @@
-
 import os, time
 import pandas as pd
 import psycopg2

@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import psycopg2
 
-# Helper: connect to your demo Postgres using Airflow Connection "pg_demo"
+# Connect to Postgres using Airflow Connection "pg_demo"
 def _pg_conn():
     conn = BaseHook.get_connection("pg_demo")
     return psycopg2.connect(
@@ -16,12 +16,8 @@ def _pg_conn():
         user=conn.login, password=conn.password
     )
 
+# Materialize/refresh fct_events_by_action in Postgre
 def aggregate_events():
-    """
-    Materialize/refresh fct_events_by_action in Postgres.
-    - CREATE TABLE IF NOT EXISTS ... (once)
-    - TRUNCATE + INSERT (each run) for a fresh snapshot
-    """
     sql = """
     CREATE TABLE IF NOT EXISTS fct_events_by_action (
         action text PRIMARY KEY,
@@ -39,11 +35,8 @@ def aggregate_events():
             cur.execute(sql)
             db.commit()
 
+# Export the batch table to a CSV artifact
 def export_report_csv():
-    """
-    Export the batch table to a CSV artifact so non-technical viewers
-    (and recruiters) can see a tangible output.
-    """
     os.makedirs("/opt/airflow/reports", exist_ok=True)
     with _pg_conn() as db:
         df = pd.read_sql_query(
@@ -59,7 +52,7 @@ with DAG(
     dag_id="clickstream_batch",
     description="Batch aggregation over streamed events (Kafka -> Postgres) + dbt",
     start_date=datetime(2025, 8, 1),
-    schedule_interval=None,     # manual trigger for demo; set cron later if desired
+    schedule_interval=None,
     catchup=False,
     default_args=default_args,
     tags=["demo", "postgres", "dbt", "batch"],
@@ -72,18 +65,16 @@ with DAG(
         python_callable=aggregate_events,
     )
 
-    # Run dbt inside the Airflow container
+    # Run dbt inside Airflow container
     dbt_run = BashOperator(
-        task_id="dbt_run",
-        bash_command=("""
-      set -euo pipefail
-      cd /opt/airflow/dbt_project
-      DBT_PROFILES_DIR=/opt/airflow/dbt_profiles /home/airflow/.local/bin/dbt deps
-      DBT_PROFILES_DIR=/opt/airflow/dbt_profiles /home/airflow/.local/bin/dbt run
-    """
-        ),
-        do_xcom_push=False,
-    )
+    task_id="dbt_run",
+    bash_command=(
+        "cd /opt/airflow/dbt_project && "
+        "DBT_PROFILES_DIR=/opt/airflow/dbt_profiles "
+        "/opt/dbt/bin/dbt deps && /opt/dbt/bin/dbt run"
+    ),
+    env={"DBT_PROFILES_DIR": "/opt/airflow/dbt_profiles"},
+)
 
     export = PythonOperator(
         task_id="export_report_csv",

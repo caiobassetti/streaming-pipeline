@@ -1,0 +1,1 @@
+{"_invocation_id": "d2c5792c-54ad-4371-b245-d9d8154861d8", "linked": {"0": {"name": "model.demo_project.stg_raw_events", "type": "model", "succ": [1]}, "1": {"name": "model.demo_project.fct_events_by_action", "type": "model"}}}
