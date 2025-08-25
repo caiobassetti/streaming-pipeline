@@ -4,8 +4,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.hooks.base import BaseHook
-import os
-import pandas as pd
 import psycopg2
 
 # Connect to Postgres using Airflow Connection "pg_demo"
@@ -34,17 +32,6 @@ def aggregate_events():
         with db.cursor() as cur:
             cur.execute(sql)
             db.commit()
-
-# Export the batch table to a CSV artifact
-def export_report_csv():
-    os.makedirs("/opt/airflow/reports", exist_ok=True)
-    with _pg_conn() as db:
-        df = pd.read_sql_query(
-            "SELECT action, n FROM fct_events_by_action ORDER BY n DESC;", db
-        )
-    out = f"/opt/airflow/reports/events_by_action_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv"
-    df.to_csv(out, index=False)
-    print(f"Wrote {out} with {len(df)} rows")
 
 default_args = {"owner": "you", "depends_on_past": False, "retries": 0}
 
@@ -76,11 +63,6 @@ with DAG(
     env={"DBT_PROFILES_DIR": "/opt/airflow/dbt_profiles"},
 )
 
-    export = PythonOperator(
-        task_id="export_report_csv",
-        python_callable=export_report_csv,
-    )
-
     done = EmptyOperator(task_id="done")
 
-    start >> aggregate >> dbt_run >> export >> done
+    start >> aggregate >> dbt_run >> done

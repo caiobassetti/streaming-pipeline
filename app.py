@@ -36,10 +36,11 @@ if view:
     st.subheader("Airflow + dbt batch aggregation")
     by_action = fetch("""
   SELECT action, COUNT(*) AS n
-  FROM analytics.fct_events_by_action
+  FROM public.fct_events_by_action
   GROUP BY action
   ORDER BY n DESC;
 """)
+
     st.bar_chart(by_action.set_index("action")["n"])
 else:
     st.subheader("Raw events")
